@@ -140,10 +140,13 @@ async function startServer() {
       if (type === 'room:create' || type === 'room:join') {
         const requestedRole = msg.role === 'anika' ? 'anika' : 'staines';
         const appearance = msg.appearance as CharacterAppearance;
+        const requestedCode = String(msg.code || '').toUpperCase().trim();
         let code =
           type === 'room:create'
-            ? generateRoomCode()
-            : String(msg.code || '').toUpperCase().trim();
+            ? requestedCode && !rooms.has(requestedCode)
+              ? requestedCode
+              : generateRoomCode()
+            : requestedCode;
 
         if (type === 'room:join' && !rooms.has(code)) {
           ws.send(JSON.stringify({ type: 'room:error', message: `No mansion room found with code "${code}".` }));

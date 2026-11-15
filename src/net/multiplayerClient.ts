@@ -38,11 +38,21 @@ class MultiplayerClient {
     this.listeners = listeners;
   }
 
+  private generateShortCode(): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 5; i++) {
+      code += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return code;
+  }
+
   private getWsUrl(roomCode?: string): string {
     const partyHost = (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_PARTYKIT_HOST;
-    if (partyHost && roomCode) {
-      const proto = partyHost.startsWith('localhost') ? 'ws:' : 'wss:';
-      return `${proto}//${partyHost}/party/${roomCode}`;
+    if (partyHost) {
+      const cleanHost = partyHost.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+      const proto = cleanHost.startsWith('localhost') || cleanHost.startsWith('127.') ? 'ws:' : 'wss:';
+      return `${proto}//${cleanHost}/party/${roomCode || 'lobby'}`;
     }
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     return `${proto}//${window.location.host}/ws`;
@@ -56,8 +66,13 @@ class MultiplayerClient {
     startLevel?: number;
   }) {
     this.intentionalClose = false;
-    this.lastJoinPayload = params;
-    this.openSocket(params);
+    const resolvedCode =
+      params.mode === 'create'
+        ? params.code || this.generateShortCode()
+        : (params.code || '').toUpperCase().trim();
+    const nextParams = { ...params, code: resolvedCode };
+    this.lastJoinPayload = nextParams;
+    this.openSocket(nextParams);
   }
 
   private openSocket(params: {
@@ -76,11 +91,13 @@ class MultiplayerClient {
       this.ws = null;
     }
 
+    let didOpen = false;
     const url = this.getWsUrl(params.code);
     const ws = new WebSocket(url);
     this.ws = ws;
 
     ws.onopen = () => {
+      didOpen = true;
       this.listeners.onConnectionChange?.(true);
       const joinMsg = {
         type: params.mode === 'create' ? 'room:create' : 'room:join',
@@ -124,6 +141,17 @@ class MultiplayerClient {
 
     ws.onclose = () => {
       this.listeners.onConnectionChange?.(false);
+      if (!didOpen && !this.intentionalClose) {
+        const hasParty = Boolean(
+          (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_PARTYKIT_HOST,
+        );
+        this.listeners.onError?.(
+          hasParty
+            ? 'Could not reach the PartyKit multiplayer server. Check VITE_PARTYKIT_HOST.'
+            : 'WebSocket server unavailable. Run with `npm start` or configure VITE_PARTYKIT_HOST for Vercel.',
+        );
+        return;
+      }
       if (!this.intentionalClose && this.lastJoinPayload) {
         if (this.reconnectTimer !== null) clearTimeout(this.reconnectTimer);
         this.reconnectTimer = window.setTimeout(() => {
