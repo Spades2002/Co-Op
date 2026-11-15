@@ -1,0 +1,8 @@
+{
+  "name": "Blackwood Manor",
+  "description": "A two-player co-op 3D haunted mansion murder mystery game starring Staines and Anika across 30 procedurally seeded cases.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
