@@ -12,7 +12,7 @@ import {
 } from '../data/customizationOptions.ts';
 import type { CharacterAppearance, PlayerSettings, Role } from '../types/game.ts';
 import { CharacterPreview3D } from './CharacterPreview3D.tsx';
-import { RotateCcw, Settings, Sparkles, Users, Volume2, VolumeX } from 'lucide-react';
+import { Heart, RotateCcw, Settings, Sparkles, Users, Volume2, VolumeX } from 'lucide-react';
 
 interface LobbyScreenProps {
   role: Role;
@@ -69,8 +69,10 @@ export function LobbyScreen({
             <h1 className="font-display text-2xl sm:text-3xl font-semibold tracking-wide text-[#f7eedb] truncate">
               Blackwood Manor
             </h1>
-            <p className="text-xs sm:text-sm text-[#9aa5bd] mt-0.5">
-              Two-Player Co-op Mystery · Staines &amp; Anika · 30 Cases
+            <p className="text-xs sm:text-sm text-[#e6c4cb] mt-0.5 flex items-center gap-1.5 flex-wrap">
+              <Heart className="w-3.5 h-3.5 text-[#f43f5e] fill-[#f43f5e] shrink-0" />
+              <span>A game for Rajkonna and Mr Kuchumuchu</span>
+              <Heart className="w-3.5 h-3.5 text-[#f43f5e] fill-[#f43f5e] shrink-0" />
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">

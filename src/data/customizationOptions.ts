@@ -10,17 +10,17 @@ import type {
 } from '../types/game.ts';
 
 export const SKIN_TONES = [
-  { id: 'porcelain', label: 'Porcelain', hex: '#f4d3be' },
-  { id: 'ivory', label: 'Warm Ivory', hex: '#e8be9e' },
-  { id: 'olive', label: 'Golden Olive', hex: '#d39f72' },
-  { id: 'amber', label: 'Amber Bronze', hex: '#b57b4c' },
-  { id: 'chestnut', label: 'Chestnut', hex: '#865334' },
-  { id: 'espresso', label: 'Deep Espresso', hex: '#543222' },
+  { id: 'porcelain', label: 'Fair Ivory', hex: '#f4d7c4' },
+  { id: 'bengali_fair', label: 'Light Warm', hex: '#ecc9af' },
+  { id: 'olive', label: 'Golden Wheat', hex: '#d39f72' },
+  { id: 'amber', label: 'Warm Bronze', hex: '#a86e44' },
+  { id: 'indian_deep', label: 'Deep Umber', hex: '#633b25' },
+  { id: 'espresso', label: 'Rich Mahogany', hex: '#4b2b1b' },
 ];
 
 export const HAIR_COLORS = [
-  { id: 'raven', label: 'Raven Black', hex: '#1d1d24' },
-  { id: 'espresso', label: 'Dark Espresso', hex: '#3d2820' },
+  { id: 'raven', label: 'Jet Black', hex: '#17171e' },
+  { id: 'espresso', label: 'Dark Espresso', hex: '#3a251d' },
   { id: 'chestnut', label: 'Chestnut', hex: '#6c3e26' },
   { id: 'auburn', label: 'Auburn', hex: '#943c24' },
   { id: 'honey', label: 'Honey Blonde', hex: '#c89e57' },
@@ -80,6 +80,7 @@ export const BOTTOM_STYLES: { id: BottomStyle; label: string }[] = [
 
 export const ACCESSORY_STYLES: { id: AccessoryStyle; label: string }[] = [
   { id: 'none', label: 'None' },
+  { id: 'bindi', label: 'Crimson Bindi' },
   { id: 'monocle', label: 'Brass Monocle' },
   { id: 'satchel', label: 'Field Satchel' },
   { id: 'fedora', label: 'Detective Hat' },
@@ -89,25 +90,25 @@ export const ACCESSORY_STYLES: { id: AccessoryStyle; label: string }[] = [
 export const DEFAULT_APPEARANCE: Record<Role, CharacterAppearance> = {
   staines: {
     faceShape: 'chiseled',
-    skinTone: '#d39f72',
+    skinTone: '#633b25',
     hairStyle: 'quiff',
-    hairColor: '#1d1d24',
+    hairColor: '#17171e',
     topStyle: 'trench',
     bottomStyle: 'trousers',
-    accessory: 'fedora',
-    primaryColor: '#2a3040',
+    accessory: 'satchel',
+    primaryColor: '#202d4a',
     accentColor: '#e2a84b',
   },
   anika: {
     faceShape: 'heart',
-    skinTone: '#b57b4c',
+    skinTone: '#ecc9af',
     hairStyle: 'waves',
-    hairColor: '#3d2820',
+    hairColor: '#17171e',
     topStyle: 'blazer',
     bottomStyle: 'skirt',
-    accessory: 'scarf',
+    accessory: 'bindi',
     primaryColor: '#682433',
-    accentColor: '#3ba39c',
+    accentColor: '#e2a84b',
   },
 };
 
@@ -120,7 +121,7 @@ export const DEFAULT_SETTINGS: PlayerSettings = {
   invertY: false,
 };
 
-const APPEARANCE_KEY = 'blackwood_appearance_v1';
+const APPEARANCE_KEY = 'blackwood_appearance_v2';
 const SETTINGS_KEY = 'blackwood_settings_v1';
 const SESSION_KEY = 'blackwood_session_v1';
 

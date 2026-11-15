@@ -8,7 +8,7 @@ export type FaceShape = 'oval' | 'square' | 'heart' | 'chiseled';
 export type HairStyle = 'quiff' | 'waves' | 'bob' | 'sidepart' | 'braids' | 'curly';
 export type TopStyle = 'trench' | 'waistcoat' | 'blazer' | 'sweater';
 export type BottomStyle = 'trousers' | 'skirt' | 'riding';
-export type AccessoryStyle = 'none' | 'monocle' | 'satchel' | 'fedora' | 'scarf';
+export type AccessoryStyle = 'none' | 'monocle' | 'satchel' | 'fedora' | 'scarf' | 'bindi';
 
 export interface CharacterAppearance {
   faceShape: FaceShape;
