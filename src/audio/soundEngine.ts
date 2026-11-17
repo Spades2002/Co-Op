@@ -1,14 +1,41 @@
 import type { PlayerSettings } from '../types/game.ts';
 
+export type MusicScene = 'lobby' | 'easy' | 'medium' | 'hard';
+
+type SceneStyle = {
+  pad: number[];
+  padBright: number;
+  tremoloHz: number;
+  noteMs: number;
+  noteGain: number;
+  pulseMs: number;
+  stingerMs: number;
+};
+
+// Each scene is a slow D minor haunted-house sound. Higher difficulty adds
+// dissonance, a heartbeat and eerie high notes.
+const SCENE_STYLES: Record<MusicScene, SceneStyle> = {
+  lobby: { pad: [146.83, 174.61, 220.0], padBright: 1100, tremoloHz: 0, noteMs: 1150, noteGain: 0.25, pulseMs: 0, stingerMs: 0 },
+  easy: { pad: [146.83, 220.0, 293.66], padBright: 900, tremoloHz: 0, noteMs: 1400, noteGain: 0.2, pulseMs: 0, stingerMs: 0 },
+  medium: { pad: [146.83, 155.56, 220.0], padBright: 800, tremoloHz: 0.18, noteMs: 1000, noteGain: 0.24, pulseMs: 1700, stingerMs: 0 },
+  hard: { pad: [146.83, 207.65, 233.08], padBright: 700, tremoloHz: 0.45, noteMs: 720, noteGain: 0.26, pulseMs: 1150, stingerMs: 7000 },
+};
+
+const MOTIF = [293.66, 349.23, 440.0, 415.3, 349.23, 329.63, 293.66, 220.0, 261.63, 329.63, 440.0, 523.25];
+
+type MusicHandle = { stop: () => void };
+
 class SoundEngine {
   private ctx: AudioContext | null = null;
   private musicGain: GainNode | null = null;
   private sfxGain: GainNode | null = null;
-  private ambientTimer: number | null = null;
-  private droneOsc1: OscillatorNode | null = null;
-  private droneOsc2: OscillatorNode | null = null;
-  private isPlayingMusic = false;
-  private stepIdx = 0;
+  private unlocked = false;
+  private desiredScene: MusicScene = 'lobby';
+  private activeScene: MusicScene | null = null;
+  private sceneToken = 0;
+  private current: MusicHandle | null = null;
+  private fileEl: HTMLAudioElement | null = null;
+  private fileChecks: Partial<Record<MusicScene, boolean>> = {};
 
   private settings: PlayerSettings = {
     musicVolume: 0.45,
@@ -45,87 +72,244 @@ class SoundEngine {
   private applyVolumes() {
     if (!this.ctx || !this.musicGain || !this.sfxGain) return;
     const now = this.ctx.currentTime;
-    const mVol = this.settings.muted ? 0 : this.settings.musicVolume * 0.28;
+    const mVol = this.settings.muted ? 0 : this.settings.musicVolume * 0.5;
     const sVol = this.settings.muted ? 0 : this.settings.sfxVolume * 0.45;
     this.musicGain.gain.setTargetAtTime(mVol, now, 0.08);
     this.sfxGain.gain.setTargetAtTime(sVol, now, 0.05);
+    this.applyFileVolume();
   }
 
+  private applyFileVolume() {
+    const el = this.fileEl;
+    if (!el) return;
+    if (this.settings.muted || this.settings.musicVolume <= 0.01) {
+      el.pause();
+      return;
+    }
+    el.volume = Math.min(1, this.settings.musicVolume);
+    if (el.paused) el.play().catch(() => {});
+  }
+
+  /** Choose which music plays. Takes effect straight away once audio is unlocked. */
+  public setMusicScene(scene: MusicScene) {
+    this.desiredScene = scene;
+    if (this.unlocked && scene !== this.activeScene) {
+      void this.startScene(scene);
+    }
+  }
+
+  /** Call from a tap or key press: browsers only allow audio after one. */
   public unlockAndStartMusic() {
     const ctx = this.ensureContext();
-    if (!ctx || this.isPlayingMusic) return;
-    this.isPlayingMusic = true;
-
-    // Warm dark ambient pad drone (D minor haunted manor chord)
-    if (this.musicGain) {
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.value = 340;
-      filter.connect(this.musicGain);
-
-      const padGain = ctx.createGain();
-      padGain.gain.value = 0.22;
-      padGain.connect(filter);
-
-      this.droneOsc1 = ctx.createOscillator();
-      this.droneOsc1.type = 'sine';
-      this.droneOsc1.frequency.value = 73.42; // D2
-      this.droneOsc1.connect(padGain);
-      this.droneOsc1.start();
-
-      this.droneOsc2 = ctx.createOscillator();
-      this.droneOsc2.type = 'triangle';
-      this.droneOsc2.frequency.value = 110.0; // A2
-      const subGain = ctx.createGain();
-      subGain.gain.value = 0.08;
-      this.droneOsc2.connect(subGain);
-      subGain.connect(filter);
-      this.droneOsc2.start();
-    }
-
-    // Haunting Victorian music-box celesta motif (D minor harmonic)
-    const motif = [293.66, 349.23, 440.0, 415.3, 349.23, 329.63, 293.66, 220.0, 261.63, 329.63, 440.0, 523.25];
-    const playNote = () => {
-      if (!this.isPlayingMusic || !this.ctx || !this.musicGain) return;
-      if (this.ctx.state === 'running' && !this.settings.muted && this.settings.musicVolume > 0.01) {
-        const now = this.ctx.currentTime;
-        const freq = motif[this.stepIdx % motif.length];
-        this.stepIdx++;
-
-        const osc = this.ctx.createOscillator();
-        const env = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, now);
-
-        env.gain.setValueAtTime(0.0001, now);
-        env.gain.exponentialRampToValueAtTime(0.16, now + 0.03);
-        env.gain.exponentialRampToValueAtTime(0.0001, now + 1.85);
-
-        osc.connect(env);
-        env.connect(this.musicGain);
-        osc.start(now);
-        osc.stop(now + 1.9);
-      }
-      this.ambientTimer = window.setTimeout(playNote, 920 + (this.stepIdx % 3 === 0 ? 460 : 0));
-    };
-
-    playNote();
+    if (!ctx || this.unlocked) return;
+    this.unlocked = true;
+    void this.startScene(this.desiredScene);
   }
 
   public stopMusic() {
-    this.isPlayingMusic = false;
-    if (this.ambientTimer !== null) {
-      clearTimeout(this.ambientTimer);
-      this.ambientTimer = null;
-    }
+    this.sceneToken++;
+    this.unlocked = false;
+    this.activeScene = null;
+    this.stopCurrent();
+  }
+
+  private stopCurrent() {
+    this.current?.stop();
+    this.current = null;
+  }
+
+  // Optional real music: put lobby.mp3, easy.mp3, medium.mp3 or hard.mp3 in public/audio.
+  private async hasTrackFile(scene: MusicScene): Promise<boolean> {
+    const known = this.fileChecks[scene];
+    if (known !== undefined) return known;
+    let ok = false;
     try {
-      this.droneOsc1?.stop();
-      this.droneOsc2?.stop();
+      const res = await fetch(`/audio/${scene}.mp3`, { method: 'HEAD' });
+      ok = res.ok && (res.headers.get('content-type') || '').startsWith('audio');
     } catch {
-      // ignore
+      ok = false;
     }
-    this.droneOsc1 = null;
-    this.droneOsc2 = null;
+    this.fileChecks[scene] = ok;
+    return ok;
+  }
+
+  private async startScene(scene: MusicScene) {
+    this.stopCurrent();
+    this.activeScene = scene;
+    const token = ++this.sceneToken;
+
+    if (await this.hasTrackFile(scene)) {
+      if (token !== this.sceneToken) return;
+      const el = new Audio(`/audio/${scene}.mp3`);
+      el.loop = true;
+      el.volume = Math.min(1, this.settings.musicVolume);
+      this.fileEl = el;
+      this.current = {
+        stop: () => {
+          el.pause();
+          if (this.fileEl === el) this.fileEl = null;
+        },
+      };
+      try {
+        if (!this.settings.muted) await el.play();
+        return;
+      } catch {
+        // fall through to the generated music
+        if (this.fileEl === el) this.fileEl = null;
+        this.current = null;
+      }
+    }
+
+    if (token !== this.sceneToken) return;
+    this.current = this.buildGeneratedScene(scene);
+  }
+
+  private buildGeneratedScene(scene: MusicScene): MusicHandle | null {
+    const ctx = this.ctx;
+    const master = this.musicGain;
+    if (!ctx || !master) return null;
+    const style = SCENE_STYLES[scene];
+
+    const out = ctx.createGain();
+    out.gain.setValueAtTime(0.0001, ctx.currentTime);
+    out.gain.linearRampToValueAtTime(1, ctx.currentTime + 1.2);
+    out.connect(master);
+
+    const sources: AudioScheduledSourceNode[] = [];
+    let alive = true;
+    let noteTimer: number | undefined;
+    let pulseTimer: number | undefined;
+    let stingerTimer: number | undefined;
+
+    // Soft chord in the middle of the range so small speakers can play it
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = style.padBright;
+    const padGain = ctx.createGain();
+    padGain.gain.value = 0.11;
+    filter.connect(padGain);
+    padGain.connect(out);
+    style.pad.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      osc.type = i === 0 ? 'triangle' : 'sine';
+      osc.frequency.value = freq;
+      osc.detune.value = (i - 1) * 6;
+      osc.connect(filter);
+      osc.start();
+      sources.push(osc);
+    });
+    if (style.tremoloHz > 0) {
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = style.tremoloHz;
+      const depth = ctx.createGain();
+      depth.gain.value = 0.06;
+      lfo.connect(depth);
+      depth.connect(padGain.gain);
+      lfo.start();
+      sources.push(lfo);
+    }
+
+    const audible = () => ctx.state === 'running' && !this.settings.muted && this.settings.musicVolume > 0.01;
+
+    // Music-box melody
+    let step = 0;
+    const playNote = () => {
+      if (!alive) return;
+      if (audible()) {
+        const now = ctx.currentTime;
+        let freq = MOTIF[step % MOTIF.length];
+        if (scene === 'hard' && step % 5 === 4) freq *= 0.943; // an uneasy flat note
+        step++;
+        const osc = ctx.createOscillator();
+        const env = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+        env.gain.setValueAtTime(0.0001, now);
+        env.gain.exponentialRampToValueAtTime(style.noteGain, now + 0.03);
+        env.gain.exponentialRampToValueAtTime(0.0001, now + 1.85);
+        osc.connect(env);
+        env.connect(out);
+        osc.start(now);
+        osc.stop(now + 1.9);
+      }
+      noteTimer = window.setTimeout(playNote, style.noteMs + (step % 3 === 0 ? 400 : 0));
+    };
+    playNote();
+
+    // Heartbeat for the tenser scenes
+    if (style.pulseMs > 0) {
+      const thump = (when: number, level: number) => {
+        const osc = ctx.createOscillator();
+        const env = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(95, when);
+        osc.frequency.exponentialRampToValueAtTime(52, when + 0.14);
+        env.gain.setValueAtTime(level, when);
+        env.gain.exponentialRampToValueAtTime(0.0001, when + 0.22);
+        osc.connect(env);
+        env.connect(out);
+        osc.start(when);
+        osc.stop(when + 0.25);
+      };
+      const beat = () => {
+        if (!alive) return;
+        if (audible()) {
+          const now = ctx.currentTime;
+          thump(now, 0.4);
+          thump(now + 0.22, 0.26);
+        }
+        pulseTimer = window.setTimeout(beat, style.pulseMs);
+      };
+      pulseTimer = window.setTimeout(beat, 800);
+    }
+
+    // Eerie high note now and then on the hardest levels
+    if (style.stingerMs > 0) {
+      const stinger = () => {
+        if (!alive) return;
+        if (audible()) {
+          const now = ctx.currentTime;
+          [1318.5, 1329.0].forEach((freq) => {
+            const osc = ctx.createOscillator();
+            const env = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now);
+            env.gain.setValueAtTime(0.0001, now);
+            env.gain.exponentialRampToValueAtTime(0.05, now + 0.7);
+            env.gain.exponentialRampToValueAtTime(0.0001, now + 2.6);
+            osc.connect(env);
+            env.connect(out);
+            osc.start(now);
+            osc.stop(now + 2.7);
+          });
+        }
+        stingerTimer = window.setTimeout(stinger, style.stingerMs + Math.random() * 4000);
+      };
+      stingerTimer = window.setTimeout(stinger, style.stingerMs);
+    }
+
+    return {
+      stop: () => {
+        alive = false;
+        window.clearTimeout(noteTimer);
+        window.clearTimeout(pulseTimer);
+        window.clearTimeout(stingerTimer);
+        const t = ctx.currentTime;
+        out.gain.cancelScheduledValues(t);
+        out.gain.setValueAtTime(Math.max(out.gain.value, 0.0001), t);
+        out.gain.linearRampToValueAtTime(0.0001, t + 0.5);
+        window.setTimeout(() => {
+          sources.forEach((src) => {
+            try {
+              src.stop();
+            } catch {
+              // already stopped
+            }
+          });
+          out.disconnect();
+        }, 600);
+      },
+    };
   }
 
   public playFootstep() {

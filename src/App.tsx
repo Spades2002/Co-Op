@@ -42,6 +42,29 @@ export default function App() {
     saveSettings(settings);
   }, [settings]);
 
+  // Lobby music in the lobby, then easy, medium or hard music by level
+  const musicScene = !roomState
+    ? 'lobby'
+    : roomState.currentLevel <= 10
+      ? 'easy'
+      : roomState.currentLevel <= 20
+        ? 'medium'
+        : 'hard';
+  useEffect(() => {
+    soundEngine.setMusicScene(musicScene);
+  }, [musicScene]);
+
+  // Browsers only allow sound after a tap or key press, so start on the first one
+  useEffect(() => {
+    const unlock = () => soundEngine.unlockAndStartMusic();
+    window.addEventListener('pointerdown', unlock, { once: true });
+    window.addEventListener('keydown', unlock, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+  }, []);
+
   useEffect(() => {
     multiplayerClient.setListeners({
       onJoined: (assignedRole, state) => {
