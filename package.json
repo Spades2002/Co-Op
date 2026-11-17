@@ -9,7 +9,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "dev:server": "wrangler dev",
+    "deploy:server": "wrangler deploy"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -21,6 +23,7 @@
     "express": "^4.21.2",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
+    "partyserver": "^0.5.10",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "three": "^0.187.0",
@@ -28,6 +31,7 @@
     "ws": "^8.23.0"
   },
   "devDependencies": {
+    "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
@@ -36,6 +40,6 @@
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
     "typescript": "^7.0.2",
-    "@types/express": "^4.17.21"
+    "wrangler": "^4.164.0"
   }
 }

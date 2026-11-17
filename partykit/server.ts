@@ -1,3 +1,5 @@
+import { Server, routePartykitRequest } from 'partyserver';
+import type { Connection, WSMessage } from 'partyserver';
 import type {
   AccusationDraft,
   CharacterAppearance,
@@ -7,33 +9,18 @@ import type {
   RoomSessionState,
 } from '../src/types/game.ts';
 
-interface PartyConnection {
-  id: string;
-  send: (msg: string) => void;
-}
+type Env = {
+  Main: DurableObjectNamespace<BlackwoodPartyServer>;
+};
 
-interface PartyRoom {
-  id: string;
-  storage: {
-    get: <T>(key: string) => Promise<T | undefined>;
-    put: (key: string, value: unknown) => Promise<void>;
-  };
-  broadcast: (msg: string, without?: string[]) => void;
-}
-
-export default class BlackwoodPartyServer {
-  room: PartyRoom;
+export class BlackwoodPartyServer extends Server<Env> {
   private connRoles = new Map<string, Role>();
 
-  constructor(room: PartyRoom) {
-    this.room = room;
-  }
-
   private async getState(startLevel = 1): Promise<RoomSessionState> {
-    const existing = await this.room.storage.get<RoomSessionState>('state');
+    const existing = await this.ctx.storage.get<RoomSessionState>('state');
     if (existing) return existing;
     const fresh: RoomSessionState = {
-      code: this.room.id.toUpperCase(),
+      code: this.name.toUpperCase(),
       currentLevel: startLevel,
       unlockedLevel: startLevel,
       solvedLevels: [],
@@ -50,17 +37,19 @@ export default class BlackwoodPartyServer {
       soloPreviewMode: false,
       updatedAt: Date.now(),
     };
-    await this.room.storage.put('state', fresh);
+    await this.ctx.storage.put('state', fresh);
     return fresh;
   }
 
   private async saveAndBroadcast(state: RoomSessionState, excludeId?: string) {
     state.updatedAt = Date.now();
-    await this.room.storage.put('state', state);
-    this.room.broadcast(JSON.stringify({ type: 'room:sync', state }), excludeId ? [excludeId] : undefined);
+    await this.ctx.storage.put('state', state);
+    this.broadcast(JSON.stringify({ type: 'room:sync', state }), excludeId ? [excludeId] : undefined);
   }
 
-  async onMessage(message: string, sender: PartyConnection) {
+  async onMessage(sender: Connection, rawMessage: WSMessage) {
+    if (typeof rawMessage !== 'string') return;
+    const message = rawMessage;
     let msg: Record<string, unknown>;
     try {
       msg = JSON.parse(message);
@@ -100,9 +89,9 @@ export default class BlackwoodPartyServer {
         lastEmote: existingPlayer?.lastEmote,
       };
       state.updatedAt = Date.now();
-      await this.room.storage.put('state', state);
+      await this.ctx.storage.put('state', state);
       sender.send(JSON.stringify({ type: 'room:joined', role: assignedRole, state }));
-      this.room.broadcast(JSON.stringify({ type: 'room:sync', state }), [sender.id]);
+      this.broadcast(JSON.stringify({ type: 'room:sync', state }), [sender.id]);
       return;
     }
 
@@ -119,7 +108,7 @@ export default class BlackwoodPartyServer {
         player.rotationY = Number(msg.rotationY) || 0;
         player.moving = Boolean(msg.moving);
         player.roomId = String(msg.roomId || player.roomId);
-        this.room.broadcast(
+        this.broadcast(
           JSON.stringify({
             type: 'player:moved',
             role,
@@ -168,9 +157,9 @@ export default class BlackwoodPartyServer {
       };
       this.connRoles.set(sender.id, nextRole);
       state.updatedAt = Date.now();
-      await this.room.storage.put('state', state);
+      await this.ctx.storage.put('state', state);
       sender.send(JSON.stringify({ type: 'room:joined', role: nextRole, state }));
-      this.room.broadcast(JSON.stringify({ type: 'room:sync', state }), [sender.id]);
+      this.broadcast(JSON.stringify({ type: 'room:sync', state }), [sender.id]);
       return;
     }
 
@@ -335,14 +324,25 @@ export default class BlackwoodPartyServer {
     }
   }
 
-  async onClose(connection: PartyConnection) {
+  async onClose(connection: Connection) {
     const role = this.connRoles.get(connection.id);
     if (!role) return;
     this.connRoles.delete(connection.id);
-    const state = await this.room.storage.get<RoomSessionState>('state');
+    const state = await this.ctx.storage.get<RoomSessionState>('state');
     if (state && state.players[role]) {
       state.players[role]!.connected = false;
       await this.saveAndBroadcast(state);
     }
   }
 }
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+    if (url.pathname === '/') {
+      return new Response('Blackwood Manor multiplayer server is running.');
+    }
+    const routed = await routePartykitRequest(request, env);
+    return routed || new Response('Not found', { status: 404 });
+  },
+};
