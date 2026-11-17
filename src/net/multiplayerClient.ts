@@ -52,7 +52,7 @@ class MultiplayerClient {
     if (partyHost) {
       const cleanHost = partyHost.replace(/^https?:\/\//, '').replace(/\/+$/, '');
       const proto = cleanHost.startsWith('localhost') || cleanHost.startsWith('127.') ? 'ws:' : 'wss:';
-      return `${proto}//${cleanHost}/party/${roomCode || 'lobby'}`;
+      return `${proto}//${cleanHost}/parties/main/${roomCode || 'lobby'}`;
     }
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     return `${proto}//${window.location.host}/ws`;
@@ -147,7 +147,7 @@ class MultiplayerClient {
         );
         this.listeners.onError?.(
           hasParty
-            ? 'Could not reach the PartyKit multiplayer server. Check VITE_PARTYKIT_HOST.'
+            ? 'Could not reach the multiplayer server. Check VITE_PARTYKIT_HOST.'
             : 'WebSocket server unavailable. Run with `npm start` or configure VITE_PARTYKIT_HOST for Vercel.',
         );
         return;
