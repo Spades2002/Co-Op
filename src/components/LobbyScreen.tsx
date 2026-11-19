@@ -2,15 +2,8 @@ import { useState } from 'react';
 import {
   ACCENT_COLORS,
   ACCESSORY_STYLES,
-  BEARD_STYLES,
   BOTTOM_STYLES,
-  FACE_SHAPES,
-  HAIR_COLORS,
-  HAIR_STYLES,
-  HEADWEAR_STYLES,
-  HIJAB_COLORS,
   OUTFIT_COLORS,
-  SKIN_TONES,
   TOP_STYLES,
 } from '../data/customizationOptions.ts';
 import type { CharacterAppearance, PlayerSettings, Role } from '../types/game.ts';
@@ -48,7 +41,6 @@ export function LobbyScreen({
 }: LobbyScreenProps) {
   const [joinCode, setJoinCode] = useState(lastSession?.roomCode || '');
   const [startLevel, setStartLevel] = useState(1);
-  const [tab, setTab] = useState<'face' | 'hair' | 'outfit'>('face');
 
   const update = <K extends keyof CharacterAppearance>(key: K, val: CharacterAppearance[K]) => {
     onChangeAppearance({ ...appearance, [key]: val });
@@ -152,190 +144,7 @@ export function LobbyScreen({
 
               {/* Customizer Controls */}
               <div className="md:col-span-7 flex flex-col gap-4">
-                <div className="flex items-center gap-1 p-1 bg-[#0b0e17] rounded-lg border border-white/10">
-                  {(
-                    [
-                      { id: 'face', label: 'Face & Skin' },
-                      { id: 'hair', label: 'Hair' },
-                      { id: 'outfit', label: 'Outfit' },
-                    ] as const
-                  ).map((t) => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setTab(t.id)}
-                      className={`flex-1 py-2 px-3 text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
-                        tab === t.id
-                          ? 'bg-[#1c2438] text-[#f7eedb]'
-                          : 'text-[#8e9ab2] hover:text-white'
-                      }`}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-
-                {tab === 'face' && (
-                  <div className="flex flex-col gap-4">
-                    <div>
-                      <span className="block text-xs font-medium text-[#a3afc7] mb-2">
-                        Face Shape
-                      </span>
-                      <div className="grid grid-cols-2 gap-2">
-                        {FACE_SHAPES.map((f) => (
-                          <button
-                            key={f.id}
-                            type="button"
-                            onClick={() => update('faceShape', f.id)}
-                            className={`h-10 px-3 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
-                              appearance.faceShape === f.id
-                                ? 'border-[#e2a84b] bg-[#e2a84b]/15 text-[#f9e7c4]'
-                                : 'border-white/10 bg-[#171d2f] text-[#b4bfd6] hover:border-white/25'
-                            }`}
-                          >
-                            {f.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <span className="block text-xs font-medium text-[#a3afc7] mb-2">
-                        Skin Tone
-                      </span>
-                      <div className="flex flex-wrap gap-2.5">
-                        {SKIN_TONES.map((s) => (
-                          <button
-                            key={s.id}
-                            type="button"
-                            onClick={() => update('skinTone', s.hex)}
-                            title={s.label}
-                            className={`w-10 h-10 rounded-lg border-2 transition-transform cursor-pointer ${
-                              appearance.skinTone === s.hex
-                                ? 'border-[#e2a84b] scale-105'
-                                : 'border-white/15 hover:scale-105'
-                            }`}
-                            style={{ backgroundColor: s.hex }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {tab === 'hair' && (
-                  <div className="flex flex-col gap-4">
-                    <div>
-                      <span className="block text-xs font-medium text-[#a3afc7] mb-2">
-                        Hair Style
-                      </span>
-                      <div className="grid grid-cols-2 gap-2">
-                        {HAIR_STYLES.map((h) => (
-                          <button
-                            key={h.id}
-                            type="button"
-                            onClick={() => update('hairStyle', h.id)}
-                            className={`h-10 px-3 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
-                              appearance.hairStyle === h.id
-                                ? 'border-[#e2a84b] bg-[#e2a84b]/15 text-[#f9e7c4]'
-                                : 'border-white/10 bg-[#171d2f] text-[#b4bfd6] hover:border-white/25'
-                            }`}
-                          >
-                            {h.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <span className="block text-xs font-medium text-[#a3afc7] mb-2">
-                        Hair Colour
-                      </span>
-                      <div className="flex flex-wrap gap-2">
-                        {HAIR_COLORS.map((c) => (
-                          <button
-                            key={c.id}
-                            type="button"
-                            onClick={() => update('hairColor', c.hex)}
-                            title={c.label}
-                            className={`w-9 h-9 rounded-lg border-2 transition-transform cursor-pointer ${
-                              appearance.hairColor === c.hex
-                                ? 'border-[#e2a84b] scale-105'
-                                : 'border-white/15 hover:scale-105'
-                            }`}
-                            style={{ backgroundColor: c.hex }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <span className="block text-xs font-medium text-[#a3afc7] mb-2">Beard</span>
-                      <div className="grid grid-cols-3 gap-2">
-                        {BEARD_STYLES.map((b) => (
-                          <button
-                            key={b.id}
-                            type="button"
-                            onClick={() => update('beardStyle', b.id)}
-                            className={`h-10 px-3 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
-                              (appearance.beardStyle ?? 'none') === b.id
-                                ? 'border-[#e2a84b] bg-[#e2a84b]/15 text-[#f9e7c4]'
-                                : 'border-white/10 bg-[#171d2f] text-[#b4bfd6] hover:border-white/25'
-                            }`}
-                          >
-                            {b.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <span className="block text-xs font-medium text-[#a3afc7] mb-2">Headwear</span>
-                      <div className="grid grid-cols-2 gap-2">
-                        {HEADWEAR_STYLES.map((h) => (
-                          <button
-                            key={h.id}
-                            type="button"
-                            onClick={() => update('headwear', h.id)}
-                            className={`h-10 px-3 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
-                              (appearance.headwear ?? 'none') === h.id
-                                ? 'border-[#e2a84b] bg-[#e2a84b]/15 text-[#f9e7c4]'
-                                : 'border-white/10 bg-[#171d2f] text-[#b4bfd6] hover:border-white/25'
-                            }`}
-                          >
-                            {h.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {(appearance.headwear ?? 'none') === 'hijab' && (
-                      <div>
-                        <span className="block text-xs font-medium text-[#a3afc7] mb-2">
-                          Hijab Colour
-                        </span>
-                        <div className="flex flex-wrap gap-2">
-                          {HIJAB_COLORS.map((c) => (
-                            <button
-                              key={c.id}
-                              type="button"
-                              onClick={() => update('hijabColor', c.hex)}
-                              title={c.label}
-                              className={`w-9 h-9 rounded-lg border-2 transition-transform cursor-pointer ${
-                                appearance.hijabColor === c.hex
-                                  ? 'border-[#e2a84b] scale-105'
-                                  : 'border-white/15 hover:scale-105'
-                              }`}
-                              style={{ backgroundColor: c.hex }}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {tab === 'outfit' && (
+                {(
                   <div className="flex flex-col gap-3.5">
                     <div>
                       <span className="block text-xs font-medium text-[#a3afc7] mb-1.5">

@@ -82,13 +82,14 @@ export function paintFace(role: Role, a: CharacterAppearance): HTMLCanvasElement
   // Beard first, so the lips and moustache sit on top of it
   if (beard !== 'none') {
     const path = new Path2D();
-    path.moveTo(-4, 246);
-    path.lineTo(16, 268);
-    path.bezierCurveTo(30, 344, 100, 380, 186, 390);
-    path.bezierCurveTo(212, 372, 238, 362, 256, 364);
-    path.bezierCurveTo(274, 362, 300, 372, 326, 388);
-    path.bezierCurveTo(412, 380, 482, 344, 496, 268);
-    path.lineTo(516, 246);
+    // Low beard: along the jaw and chin, bare cheeks, never a thin strap
+    path.moveTo(-4, 404);
+    path.lineTo(10, 420);
+    path.bezierCurveTo(30, 500, 80, 540, 150, 548);
+    path.bezierCurveTo(200, 552, 226, 500, 256, 486);
+    path.bezierCurveTo(286, 500, 312, 552, 362, 548);
+    path.bezierCurveTo(432, 540, 482, 500, 502, 420);
+    path.lineTo(516, 404);
     path.lineTo(516, FACE_H + 4);
     path.lineTo(-4, FACE_H + 4);
     path.closePath();
@@ -105,7 +106,7 @@ export function paintFace(role: Role, a: CharacterAppearance): HTMLCanvasElement
     ctx.clip(path);
     for (let i = 0; i < 3200; i++) {
       const x = rand() * FACE_W;
-      const y = 200 + rand() * (FACE_H - 200);
+      const y = 400 + rand() * (FACE_H - 400);
       const light = rand() > 0.5;
       ctx.fillStyle = light ? rgba(mix(hair, '#6b5a4c', 0.5), 0.28) : rgba('#000000', 0.3);
       ctx.fillRect(x, y, 2, 2);
@@ -119,12 +120,12 @@ export function paintFace(role: Role, a: CharacterAppearance): HTMLCanvasElement
     ctx.lineWidth = 10;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(22, 276);
-    ctx.bezierCurveTo(36, 344, 104, 372, 186, 382);
+    ctx.moveTo(18, 424);
+    ctx.bezierCurveTo(36, 498, 84, 534, 150, 541);
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(490, 276);
-    ctx.bezierCurveTo(476, 344, 408, 372, 326, 382);
+    ctx.moveTo(494, 424);
+    ctx.bezierCurveTo(476, 498, 428, 534, 362, 541);
     ctx.stroke();
     ctx.restore();
 
@@ -459,8 +460,11 @@ export function buildHead(
         ),
       );
     const front = Math.PI / 2;
-    add(shell(front + faceHalf - 0.02, Math.PI * 0.5 - faceHalf, Math.PI * 0.5, Math.PI * 0.4));
-    add(shell(0, Math.PI * 0.5 - faceHalf + 0.02, Math.PI * 0.5, Math.PI * 0.4));
+    const jawStart = Math.PI * 0.62;
+    const jawLen = Math.PI * 0.28;
+    const sideLen = 0.68;
+    add(shell(front + faceHalf - 0.02, sideLen, jawStart, jawLen));
+    add(shell(front - faceHalf + 0.02 - sideLen, sideLen, jawStart, jawLen));
     add(shell(Math.PI * 0.1, Math.PI * 0.8, Math.PI * 0.79, Math.PI * 0.1));
   }
 
@@ -680,19 +684,4 @@ function buildHijab(head: THREE.Group, scale: HeadScale, mat: THREE.Material) {
     pts.push(pos(cT + Math.cos(t) * ay * 1.0, cx + Math.sin(t) * ax * 1.0, 1.012));
   }
   hj.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, true), 96, 0.014, 8, true), mat));
-
-  // Cloth under the chin and around the neck
-  const wrap = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.27, 0.3, 16, 1, true), mat);
-  wrap.position.set(0, -0.25, -0.01);
-  hj.add(wrap);
-  const chest = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 8, 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.3), mat);
-  chest.scale.set(1.25, 1, 1.0);
-  chest.position.set(0, -0.2, 0.03);
-  hj.add(chest);
-
-  // Loose end draped over one shoulder
-  const tail = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.3, 0.035), mat);
-  tail.position.set(0.2, -0.38, 0.13);
-  tail.rotation.set(0.1, -0.15, -0.32);
-  hj.add(tail);
 }

@@ -155,7 +155,7 @@ export const DEFAULT_SETTINGS: PlayerSettings = {
   invertY: false,
 };
 
-const APPEARANCE_KEY = 'blackwood_appearance_v3';
+const APPEARANCE_KEY = 'blackwood_appearance_v4';
 const SETTINGS_KEY = 'blackwood_settings_v1';
 const SESSION_KEY = 'blackwood_session_v1';
 
