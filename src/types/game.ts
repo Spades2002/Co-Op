@@ -4,8 +4,10 @@ export type DifficultyTier = 'easy' | 'medium' | 'hard';
 
 export type GraphicsQuality = 'low' | 'medium' | 'high';
 
-export type FaceShape = 'oval' | 'square' | 'heart' | 'chiseled';
-export type HairStyle = 'quiff' | 'waves' | 'bob' | 'sidepart' | 'braids' | 'curly';
+export type FaceShape = 'oval' | 'square' | 'heart' | 'chiseled' | 'round';
+export type HairStyle = 'quiff' | 'waves' | 'bob' | 'sidepart' | 'braids' | 'curly' | 'fringe';
+export type BeardStyle = 'none' | 'stubble' | 'full';
+export type Headwear = 'none' | 'hijab';
 export type TopStyle = 'trench' | 'waistcoat' | 'blazer' | 'sweater';
 export type BottomStyle = 'trousers' | 'skirt' | 'riding';
 export type AccessoryStyle = 'none' | 'monocle' | 'satchel' | 'fedora' | 'scarf' | 'bindi';
@@ -20,6 +22,11 @@ export interface CharacterAppearance {
   accessory: AccessoryStyle;
   primaryColor: string;
   accentColor: string;
+  // Added later: older saved looks and older partners may not have these
+  beardStyle?: BeardStyle;
+  headwear?: Headwear;
+  hijabColor?: string;
+  eyeColor?: string;
 }
 
 export interface PlayerSettings {

@@ -2,8 +2,10 @@ import type {
   AccessoryStyle,
   BottomStyle,
   CharacterAppearance,
+  BeardStyle,
   FaceShape,
   HairStyle,
+  Headwear,
   PlayerSettings,
   Role,
   TopStyle,
@@ -16,6 +18,8 @@ export const SKIN_TONES = [
   { id: 'amber', label: 'Warm Bronze', hex: '#a86e44' },
   { id: 'indian_deep', label: 'Deep Umber', hex: '#633b25' },
   { id: 'espresso', label: 'Rich Mahogany', hex: '#4b2b1b' },
+  { id: 'medium_brown', label: 'Medium Brown', hex: '#8b5a3a' },
+  { id: 'warm_tan', label: 'Warm Tan', hex: '#c58b63' },
 ];
 
 export const HAIR_COLORS = [
@@ -27,6 +31,16 @@ export const HAIR_COLORS = [
   { id: 'ash', label: 'Ash Silver', hex: '#a8afb8' },
   { id: 'midnight', label: 'Midnight Indigo', hex: '#283354' },
   { id: 'rosewood', label: 'Rosewood', hex: '#6d2d3b' },
+];
+
+export const HIJAB_COLORS = [
+  { id: 'dusty_rose', label: 'Dusty Rose', hex: '#c99a9c' },
+  { id: 'mauve', label: 'Soft Mauve', hex: '#9c7a96' },
+  { id: 'sage', label: 'Sage', hex: '#8fa58a' },
+  { id: 'navy', label: 'Navy', hex: '#2e3a59' },
+  { id: 'black', label: 'Black', hex: '#1f1f26' },
+  { id: 'cream', label: 'Cream', hex: '#e3d8c3' },
+  { id: 'burgundy', label: 'Burgundy', hex: '#7a2c3a' },
 ];
 
 export const OUTFIT_COLORS = [
@@ -54,6 +68,7 @@ export const FACE_SHAPES: { id: FaceShape; label: string }[] = [
   { id: 'square', label: 'Square' },
   { id: 'heart', label: 'Heart' },
   { id: 'chiseled', label: 'Chiseled' },
+  { id: 'round', label: 'Round' },
 ];
 
 export const HAIR_STYLES: { id: HairStyle; label: string }[] = [
@@ -63,6 +78,18 @@ export const HAIR_STYLES: { id: HairStyle; label: string }[] = [
   { id: 'sidepart', label: 'Side Part' },
   { id: 'braids', label: 'Braided Crown' },
   { id: 'curly', label: 'Curly Crop' },
+  { id: 'fringe', label: 'Fringe Cut' },
+];
+
+export const BEARD_STYLES: { id: BeardStyle; label: string }[] = [
+  { id: 'none', label: 'Clean Shaven' },
+  { id: 'stubble', label: 'Stubble' },
+  { id: 'full', label: 'Full Beard' },
+];
+
+export const HEADWEAR_STYLES: { id: Headwear; label: string }[] = [
+  { id: 'none', label: 'None' },
+  { id: 'hijab', label: 'Hijab' },
 ];
 
 export const TOP_STYLES: { id: TopStyle; label: string }[] = [
@@ -89,26 +116,33 @@ export const ACCESSORY_STYLES: { id: AccessoryStyle; label: string }[] = [
 
 export const DEFAULT_APPEARANCE: Record<Role, CharacterAppearance> = {
   staines: {
-    faceShape: 'chiseled',
-    skinTone: '#633b25',
-    hairStyle: 'quiff',
-    hairColor: '#17171e',
+    faceShape: 'oval',
+    skinTone: '#8b5a3a',
+    hairStyle: 'fringe',
+    hairColor: '#33271f',
     topStyle: 'trench',
     bottomStyle: 'trousers',
     accessory: 'satchel',
     primaryColor: '#202d4a',
     accentColor: '#e2a84b',
+    beardStyle: 'full',
+    headwear: 'none',
+    eyeColor: '#33200f',
   },
   anika: {
-    faceShape: 'heart',
-    skinTone: '#ecc9af',
+    faceShape: 'round',
+    skinTone: '#c58b63',
     hairStyle: 'waves',
     hairColor: '#17171e',
     topStyle: 'blazer',
     bottomStyle: 'skirt',
-    accessory: 'bindi',
+    accessory: 'none',
     primaryColor: '#682433',
     accentColor: '#e2a84b',
+    beardStyle: 'none',
+    headwear: 'hijab',
+    hijabColor: '#c99a9c',
+    eyeColor: '#33200f',
   },
 };
 
@@ -121,7 +155,7 @@ export const DEFAULT_SETTINGS: PlayerSettings = {
   invertY: false,
 };
 
-const APPEARANCE_KEY = 'blackwood_appearance_v2';
+const APPEARANCE_KEY = 'blackwood_appearance_v3';
 const SETTINGS_KEY = 'blackwood_settings_v1';
 const SESSION_KEY = 'blackwood_session_v1';
 

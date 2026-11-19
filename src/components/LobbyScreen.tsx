@@ -2,10 +2,13 @@ import { useState } from 'react';
 import {
   ACCENT_COLORS,
   ACCESSORY_STYLES,
+  BEARD_STYLES,
   BOTTOM_STYLES,
   FACE_SHAPES,
   HAIR_COLORS,
   HAIR_STYLES,
+  HEADWEAR_STYLES,
+  HIJAB_COLORS,
   OUTFIT_COLORS,
   SKIN_TONES,
   TOP_STYLES,
@@ -265,6 +268,70 @@ export function LobbyScreen({
                         ))}
                       </div>
                     </div>
+
+                    <div>
+                      <span className="block text-xs font-medium text-[#a3afc7] mb-2">Beard</span>
+                      <div className="grid grid-cols-3 gap-2">
+                        {BEARD_STYLES.map((b) => (
+                          <button
+                            key={b.id}
+                            type="button"
+                            onClick={() => update('beardStyle', b.id)}
+                            className={`h-10 px-3 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                              (appearance.beardStyle ?? 'none') === b.id
+                                ? 'border-[#e2a84b] bg-[#e2a84b]/15 text-[#f9e7c4]'
+                                : 'border-white/10 bg-[#171d2f] text-[#b4bfd6] hover:border-white/25'
+                            }`}
+                          >
+                            {b.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="block text-xs font-medium text-[#a3afc7] mb-2">Headwear</span>
+                      <div className="grid grid-cols-2 gap-2">
+                        {HEADWEAR_STYLES.map((h) => (
+                          <button
+                            key={h.id}
+                            type="button"
+                            onClick={() => update('headwear', h.id)}
+                            className={`h-10 px-3 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                              (appearance.headwear ?? 'none') === h.id
+                                ? 'border-[#e2a84b] bg-[#e2a84b]/15 text-[#f9e7c4]'
+                                : 'border-white/10 bg-[#171d2f] text-[#b4bfd6] hover:border-white/25'
+                            }`}
+                          >
+                            {h.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {(appearance.headwear ?? 'none') === 'hijab' && (
+                      <div>
+                        <span className="block text-xs font-medium text-[#a3afc7] mb-2">
+                          Hijab Colour
+                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          {HIJAB_COLORS.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => update('hijabColor', c.hex)}
+                              title={c.label}
+                              className={`w-9 h-9 rounded-lg border-2 transition-transform cursor-pointer ${
+                                appearance.hijabColor === c.hex
+                                  ? 'border-[#e2a84b] scale-105'
+                                  : 'border-white/15 hover:scale-105'
+                              }`}
+                              style={{ backgroundColor: c.hex }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
