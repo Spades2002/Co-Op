@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { soundEngine } from '../audio/soundEngine.ts';
 import type { InteractTarget } from '../three/mansionScene.ts';
 import type { CaseData, Role, RoomSessionState } from '../types/game.ts';
 import { EyeOff, KeyRound, Lock, MessageSquare, Sparkles, X } from 'lucide-react';
@@ -178,7 +179,10 @@ export function InteractionModal({
               </label>
               <select
                 value={selectedClueId}
-                onChange={(e) => setSelectedClueId(e.target.value)}
+                onChange={(e) => {
+                  setSelectedClueId(e.target.value);
+                  if (e.target.value) soundEngine.playSuspectVoice(suspect.id);
+                }}
                 className="h-10 px-3 rounded-lg bg-[#181f33] border border-white/10 text-xs sm:text-sm text-white focus:outline-none focus:border-[#7dd3fc]"
               >
                 <option value="">Select a clue to confront {suspect.name.split(' ')[0]}...</option>
@@ -200,6 +204,7 @@ export function InteractionModal({
             <button
               type="button"
               onClick={() => {
+                soundEngine.playSuspectVoice(suspect.id);
                 onQuestionSuspect(suspect.id);
                 onClose();
               }}
@@ -276,6 +281,7 @@ export function InteractionModal({
                     setPuzzleError(null);
                     onSolvePuzzle(puzzle.id);
                   } else {
+                    soundEngine.playPuzzleWrong();
                     setPuzzleError('The mechanism clicks and resets—check both partners’ inscriptions.');
                   }
                 }}

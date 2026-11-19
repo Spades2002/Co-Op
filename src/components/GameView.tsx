@@ -110,11 +110,23 @@ export function GameView({
   const partner = roomState.players[partnerRole];
   const myPlayer = roomState.players[myRole];
 
+  // Paper sounds when the notebook opens and closes (skip the very first render)
+  const notebookMounted = useRef(false);
+  useEffect(() => {
+    if (!notebookMounted.current) {
+      notebookMounted.current = true;
+      return;
+    }
+    if (notebookOpen) soundEngine.playNotebookOpen();
+    else soundEngine.playNotebookClose();
+  }, [notebookOpen]);
+
   const callbacksRef = useRef({
     onLocalMove,
     onInteract: (target: InteractTarget) => {
-      soundEngine.playClick();
-      if (target.kind === 'suspect') soundEngine.playGhostSpeak();
+      if (target.kind === 'suspect') soundEngine.playSuspectVoice(target.suspect.id);
+      else if (target.kind === 'puzzle') soundEngine.playPuzzleInteract();
+      else soundEngine.playObjectInteract(target.clue.propType);
       setActiveInteract(target);
     },
   });

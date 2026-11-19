@@ -42,14 +42,8 @@ export default function App() {
     saveSettings(settings);
   }, [settings]);
 
-  // Lobby music in the lobby, then easy, medium or hard music by level
-  const musicScene = !roomState
-    ? 'lobby'
-    : roomState.currentLevel <= 10
-      ? 'easy'
-      : roomState.currentLevel <= 20
-        ? 'medium'
-        : 'hard';
+  // Music only plays in the lobby. Once a level loads it stops and only sound effects remain.
+  const musicScene = !roomState ? 'lobby' : 'none';
   useEffect(() => {
     soundEngine.setMusicScene(musicScene);
   }, [musicScene]);

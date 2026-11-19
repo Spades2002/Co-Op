@@ -1,6 +1,8 @@
 import type { PlayerSettings } from '../types/game.ts';
 
-export type MusicScene = 'lobby' | 'easy' | 'medium' | 'hard';
+export type PlayableScene = 'lobby' | 'easy' | 'medium' | 'hard';
+/** 'none' means silence: used once a level has loaded. */
+export type MusicScene = PlayableScene | 'none';
 
 type SceneStyle = {
   pad: number[];
@@ -14,7 +16,7 @@ type SceneStyle = {
 
 // Each scene is a slow D minor haunted-house sound. Higher difficulty adds
 // dissonance, a heartbeat and eerie high notes.
-const SCENE_STYLES: Record<MusicScene, SceneStyle> = {
+const SCENE_STYLES: Record<PlayableScene, SceneStyle> = {
   lobby: { pad: [146.83, 174.61, 220.0], padBright: 1100, tremoloHz: 0, noteMs: 1150, noteGain: 0.25, pulseMs: 0, stingerMs: 0 },
   easy: { pad: [146.83, 220.0, 293.66], padBright: 900, tremoloHz: 0, noteMs: 1400, noteGain: 0.2, pulseMs: 0, stingerMs: 0 },
   medium: { pad: [146.83, 155.56, 220.0], padBright: 800, tremoloHz: 0.18, noteMs: 1000, noteGain: 0.24, pulseMs: 1700, stingerMs: 0 },
@@ -35,7 +37,7 @@ class SoundEngine {
   private sceneToken = 0;
   private current: MusicHandle | null = null;
   private fileEl: HTMLAudioElement | null = null;
-  private fileChecks: Partial<Record<MusicScene, boolean>> = {};
+  private fileChecks: Partial<Record<PlayableScene, boolean>> = {};
 
   private settings: PlayerSettings = {
     musicVolume: 0.45,
@@ -119,7 +121,7 @@ class SoundEngine {
   }
 
   // Optional real music: put lobby.mp3, easy.mp3, medium.mp3 or hard.mp3 in public/audio.
-  private async hasTrackFile(scene: MusicScene): Promise<boolean> {
+  private async hasTrackFile(scene: PlayableScene): Promise<boolean> {
     const known = this.fileChecks[scene];
     if (known !== undefined) return known;
     let ok = false;
@@ -137,6 +139,7 @@ class SoundEngine {
     this.stopCurrent();
     this.activeScene = scene;
     const token = ++this.sceneToken;
+    if (scene === 'none') return;
 
     if (await this.hasTrackFile(scene)) {
       if (token !== this.sceneToken) return;
@@ -164,7 +167,7 @@ class SoundEngine {
     this.current = this.buildGeneratedScene(scene);
   }
 
-  private buildGeneratedScene(scene: MusicScene): MusicHandle | null {
+  private buildGeneratedScene(scene: PlayableScene): MusicHandle | null {
     const ctx = this.ctx;
     const master = this.musicGain;
     if (!ctx || !master) return null;
@@ -440,6 +443,250 @@ class SoundEngine {
     osc.start(now);
     osc.stop(now + 0.06);
   }
+  // ---------------------------------------------------------------------
+  // Interaction sound effects (no music is playing during a level)
+  // ---------------------------------------------------------------------
+
+  private tone(
+    type: OscillatorType,
+    f0: number,
+    f1: number,
+    start: number,
+    dur: number,
+    vol: number,
+    opts: { vibHz?: number; vibDepth?: number; attack?: number; filter?: number } = {},
+  ) {
+    const ctx = this.ctx;
+    if (!ctx || !this.sfxGain) return;
+    const osc = ctx.createOscillator();
+    const env = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(f0, start);
+    if (f1 !== f0) osc.frequency.exponentialRampToValueAtTime(Math.max(20, f1), start + dur);
+    const attack = opts.attack ?? 0.015;
+    env.gain.setValueAtTime(0.0001, start);
+    env.gain.exponentialRampToValueAtTime(vol, start + attack);
+    env.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    let node: AudioNode = osc;
+    if (opts.filter) {
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = opts.filter;
+      osc.connect(lp);
+      node = lp;
+    }
+    node.connect(env);
+    env.connect(this.sfxGain);
+    if (opts.vibHz) {
+      const lfo = ctx.createOscillator();
+      const depth = ctx.createGain();
+      lfo.frequency.value = opts.vibHz;
+      depth.gain.value = opts.vibDepth ?? 8;
+      lfo.connect(depth);
+      depth.connect(osc.frequency);
+      lfo.start(start);
+      lfo.stop(start + dur + 0.05);
+    }
+    osc.start(start);
+    osc.stop(start + dur + 0.05);
+  }
+
+  private noise(start: number, dur: number, vol: number, freq: number, q = 1, kind: BiquadFilterType = 'bandpass') {
+    const ctx = this.ctx;
+    if (!ctx || !this.sfxGain) return;
+    const len = Math.max(1, Math.floor(ctx.sampleRate * dur));
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const filt = ctx.createBiquadFilter();
+    filt.type = kind;
+    filt.frequency.value = freq;
+    filt.Q.value = q;
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0.0001, start);
+    env.gain.exponentialRampToValueAtTime(vol, start + Math.min(0.02, dur / 3));
+    env.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+    src.connect(filt);
+    filt.connect(env);
+    env.connect(this.sfxGain);
+    src.start(start);
+    src.stop(start + dur + 0.02);
+  }
+
+  private ready(): number | null {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.sfxGain || this.settings.muted) return null;
+    if (ctx.state === 'suspended') void ctx.resume();
+    return ctx.currentTime;
+  }
+
+  /** Paper rustle and a soft cover thud. */
+  public playNotebookOpen() {
+    const t = this.ready();
+    if (t === null) return;
+    this.noise(t, 0.12, 0.16, 2800, 0.8);
+    this.noise(t + 0.09, 0.16, 0.12, 3600, 0.8);
+    this.tone('sine', 150, 80, t + 0.02, 0.12, 0.14);
+  }
+
+  public playNotebookClose() {
+    const t = this.ready();
+    if (t === null) return;
+    this.noise(t, 0.1, 0.12, 2200, 0.8);
+    this.tone('sine', 120, 60, t + 0.05, 0.14, 0.18);
+  }
+
+  /** Sound for examining an object. Shaped by what kind of prop it is. */
+  public playObjectInteract(propType?: string) {
+    const t = this.ready();
+    if (t === null) return;
+    switch (propType) {
+      case 'letter':
+      case 'blueprint':
+      case 'ledger':
+        this.noise(t, 0.14, 0.14, 3200, 0.7);
+        this.noise(t + 0.1, 0.12, 0.1, 4200, 0.7);
+        break;
+      case 'dagger':
+        this.tone('triangle', 2400, 3100, t, 0.5, 0.07, { attack: 0.005 });
+        this.noise(t, 0.08, 0.12, 6000, 2, 'highpass');
+        break;
+      case 'vial':
+      case 'glass':
+        this.tone('sine', 1760, 1760, t, 0.4, 0.09, { attack: 0.004 });
+        this.tone('sine', 2637, 2637, t + 0.03, 0.35, 0.06, { attack: 0.004 });
+        break;
+      case 'key':
+        this.tone('square', 1900, 1900, t, 0.05, 0.05, { attack: 0.003 });
+        this.tone('square', 1500, 1500, t + 0.07, 0.07, 0.05, { attack: 0.003 });
+        this.noise(t + 0.02, 0.1, 0.06, 5000, 2, 'highpass');
+        break;
+      case 'locket':
+        this.tone('sine', 1319, 1319, t, 0.3, 0.08, { attack: 0.004 });
+        this.tone('sine', 1568, 1568, t + 0.1, 0.35, 0.08, { attack: 0.004 });
+        break;
+      case 'candle':
+        this.noise(t, 0.3, 0.1, 900, 0.5, 'lowpass');
+        this.tone('sine', 180, 120, t, 0.25, 0.05);
+        break;
+      case 'footprint':
+        this.tone('triangle', 110, 50, t, 0.12, 0.16);
+        this.noise(t, 0.1, 0.1, 500, 0.6);
+        break;
+      default:
+        this.tone('triangle', 330, 260, t, 0.16, 0.12);
+        this.noise(t, 0.06, 0.06, 1800, 0.8);
+    }
+  }
+
+  /** Cipher lock and puzzle-box mechanism sounds. */
+  public playPuzzleInteract() {
+    const t = this.ready();
+    if (t === null) return;
+    [0, 0.09, 0.18].forEach((d, i) => {
+      this.tone('square', 900 + i * 140, 700 + i * 90, t + d, 0.04, 0.05, { attack: 0.002 });
+      this.noise(t + d, 0.03, 0.08, 4000, 1.5, 'highpass');
+    });
+    this.tone('sine', 140, 90, t + 0.25, 0.2, 0.1);
+  }
+
+  public playPuzzleWrong() {
+    const t = this.ready();
+    if (t === null) return;
+    this.tone('sawtooth', 190, 120, t, 0.28, 0.1, { filter: 700 });
+    this.tone('sawtooth', 160, 90, t + 0.14, 0.32, 0.1, { filter: 700 });
+  }
+
+  /** Each suspect has their own synthesised voice: pitch, timbre, rhythm and wobble. */
+  public playSuspectVoice(suspectId: string) {
+    const t = this.ready();
+    if (t === null) return;
+    const v = VOICES[suspectId] ?? fallbackVoice(suspectId);
+    let at = t;
+    v.syllables.forEach((syl) => {
+      const dur = syl.d * v.pace;
+      const f0 = v.base * syl.from;
+      const f1 = v.base * syl.to;
+      this.tone(v.wave, f0, f1, at, dur, v.vol, {
+        vibHz: v.vibHz,
+        vibDepth: v.vibDepth,
+        attack: v.attack,
+        filter: v.filter,
+      });
+      if (v.breath) this.noise(at, dur, v.breath, 3000, 0.6);
+      if (v.second) this.tone(v.second.wave, f0 * v.second.ratio, f1 * v.second.ratio, at, dur, v.vol * v.second.vol, { filter: v.filter });
+      at += dur + v.gap;
+    });
+  }
+}
+
+type Syllable = { from: number; to: number; d: number };
+type Voice = {
+  wave: OscillatorType;
+  base: number;
+  vol: number;
+  pace: number;
+  gap: number;
+  attack: number;
+  filter: number;
+  vibHz?: number;
+  vibDepth?: number;
+  breath?: number;
+  second?: { wave: OscillatorType; ratio: number; vol: number };
+  syllables: Syllable[];
+};
+
+const VOICES: Record<string, Voice> = {
+  // Low, pompous and slow.
+  lord_alistair: { wave: 'sawtooth', base: 105, vol: 0.12, pace: 1.25, gap: 0.05, attack: 0.04, filter: 650, vibHz: 4, vibDepth: 3,
+    syllables: [{ from: 1, to: 1.12, d: 0.2 }, { from: 1.12, to: 0.9, d: 0.28 }, { from: 0.95, to: 0.8, d: 0.3 }] },
+  // Soft, high and fluttery.
+  lady_evelyn: { wave: 'sine', base: 520, vol: 0.14, pace: 1, gap: 0.04, attack: 0.05, filter: 3000, vibHz: 6.5, vibDepth: 14,
+    syllables: [{ from: 1, to: 1.2, d: 0.16 }, { from: 1.2, to: 1.05, d: 0.18 }, { from: 1.1, to: 1.3, d: 0.2 }, { from: 1.3, to: 1, d: 0.22 }] },
+  // Nasal, fast, buzzy.
+  dr_vance: { wave: 'square', base: 300, vol: 0.06, pace: 0.7, gap: 0.03, attack: 0.01, filter: 1800,
+    syllables: [{ from: 1, to: 1.1, d: 0.1 }, { from: 1.2, to: 1.05, d: 0.1 }, { from: 1.1, to: 1.3, d: 0.1 }, { from: 1.25, to: 1, d: 0.12 }, { from: 1.05, to: 1.2, d: 0.1 }] },
+  // Breathy, gliding and wide vibrato.
+  madame_isolde: { wave: 'triangle', base: 400, vol: 0.14, pace: 1.2, gap: 0.02, attack: 0.07, filter: 2200, vibHz: 5, vibDepth: 28, breath: 0.05,
+    syllables: [{ from: 0.9, to: 1.3, d: 0.3 }, { from: 1.3, to: 0.95, d: 0.35 }] },
+  // Gruff, low barks.
+  capt_sterling: { wave: 'sawtooth', base: 85, vol: 0.15, pace: 0.75, gap: 0.09, attack: 0.008, filter: 500, breath: 0.03,
+    syllables: [{ from: 1.3, to: 0.8, d: 0.12 }, { from: 1.2, to: 0.75, d: 0.14 }] },
+  // Bright, quick blips.
+  clara_holloway: { wave: 'triangle', base: 700, vol: 0.12, pace: 0.6, gap: 0.04, attack: 0.006, filter: 4000,
+    syllables: [{ from: 1, to: 1.25, d: 0.09 }, { from: 1.5, to: 1.3, d: 0.09 }, { from: 1.2, to: 1.6, d: 0.09 }, { from: 1.7, to: 1.4, d: 0.1 }] },
+  // Old, wavering, tremulous.
+  prof_ash: { wave: 'triangle', base: 230, vol: 0.14, pace: 1.3, gap: 0.05, attack: 0.05, filter: 1500, vibHz: 9, vibDepth: 16,
+    syllables: [{ from: 1, to: 0.9, d: 0.22 }, { from: 0.95, to: 1.05, d: 0.2 }, { from: 1.05, to: 0.8, d: 0.3 }] },
+  // Haughty, descending sneer.
+  baroness_vane: { wave: 'sawtooth', base: 330, vol: 0.08, pace: 1.1, gap: 0.03, attack: 0.02, filter: 1400, second: { wave: 'sine', ratio: 1.5, vol: 0.6 },
+    syllables: [{ from: 1.5, to: 1.25, d: 0.2 }, { from: 1.25, to: 1, d: 0.2 }, { from: 1, to: 0.7, d: 0.3 }] },
+  // Monotone chant.
+  father_crowe: { wave: 'sine', base: 196, vol: 0.16, pace: 1.1, gap: 0.06, attack: 0.05, filter: 1200, second: { wave: 'sine', ratio: 2, vol: 0.4 },
+    syllables: [{ from: 1, to: 1, d: 0.22 }, { from: 1, to: 1, d: 0.22 }, { from: 1, to: 1, d: 0.22 }, { from: 1, to: 0.94, d: 0.3 }] },
+  // Sharp, clipped staccato.
+  inspector_graves: { wave: 'square', base: 160, vol: 0.07, pace: 0.55, gap: 0.12, attack: 0.004, filter: 1100,
+    syllables: [{ from: 1, to: 1, d: 0.1 }, { from: 1.35, to: 1.35, d: 0.1 }, { from: 1.1, to: 1.1, d: 0.1 }] },
+};
+
+function fallbackVoice(id: string): Voice {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  const waves: OscillatorType[] = ['sine', 'triangle', 'square', 'sawtooth'];
+  return {
+    wave: waves[h % 4],
+    base: 120 + (h % 400),
+    vol: 0.1,
+    pace: 0.8 + ((h >> 3) % 6) / 10,
+    gap: 0.04,
+    attack: 0.02,
+    filter: 1800,
+    vibHz: (h >> 5) % 2 ? 6 : undefined,
+    vibDepth: 10,
+    syllables: [{ from: 1, to: 1.2, d: 0.15 }, { from: 1.2, to: 0.9, d: 0.2 }, { from: 1, to: 1.1, d: 0.15 }],
+  };
 }
 
 export const soundEngine = new SoundEngine();
